@@ -1,0 +1,37 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Guard {
+  id        Int       @id @default(autoincrement())
+  name      String
+  email     String    @unique
+  phone     String?
+  shifts    Shift[]
+  requests  Request[]
+}
+
+model Shift {
+  id         Int      @id @default(autoincrement())
+  type       String   // Day or Night
+  startTime  String
+  endTime    String
+  date       DateTime
+  guardId    Int
+  guard      Guard    @relation(fields: [guardId], references: [id])
+}
+
+model Request {
+  id         Int      @id @default(autoincrement())
+  type       String   // 'frei' or 'swap'
+  message    String?
+  status     String   @default("pending")
+  createdAt  DateTime @default(now())
+  guardId    Int
+  guard      Guard    @relation(fields: [guardId], references: [id])
+}
