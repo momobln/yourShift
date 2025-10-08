@@ -8,30 +8,45 @@ datasource db {
 }
 
 model Guard {
-  id        Int       @id @default(autoincrement())
-  name      String
-  email     String    @unique
-  phone     String?
-  shifts    Shift[]
-  requests  Request[]
+  id      Int       @id @default(autoincrement())
+  name    String
+  email   String    @unique
+  phone   String?
+  userId  Int?      @unique // المفتاح الأجنبي من user
+  user    User?     @relation("UserGuard", fields: [userId], references: [id])
+  shifts  Shift[]
+  Request Request[]
 }
 
 model Shift {
-  id         Int      @id @default(autoincrement())
-  type       String   // Day or Night
-  startTime  String
-  endTime    String
-  date       DateTime
-  guardId    Int
-  guard      Guard    @relation(fields: [guardId], references: [id])
+  id        Int      @id @default(autoincrement())
+  type      String // Day or Night
+  startTime String
+  endTime   String
+  date      DateTime
+  guardId   Int
+  guard     Guard    @relation(fields: [guardId], references: [id])
 }
 
 model Request {
-  id         Int      @id @default(autoincrement())
-  type       String   // 'frei' or 'swap'
-  message    String?
-  status     String   @default("pending")
-  createdAt  DateTime @default(now())
-  guardId    Int
-  guard      Guard    @relation(fields: [guardId], references: [id])
+  id        Int      @id @default(autoincrement())
+  type      String // 'frei' or 'swap'
+  message   String?
+  status    String   @default("pending")
+  createdAt DateTime @default(now())
+  guardId   Int
+  guard     Guard    @relation(fields: [guardId], references: [id])
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  name      String
+  email     String   @unique
+  password  String
+  role      String   @default("guard")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // العلاقة مع الحارس
+  guard Guard? @relation("UserGuard")
 }
