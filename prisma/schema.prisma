@@ -8,45 +8,86 @@ datasource db {
 }
 
 model Guard {
-  id      Int       @id @default(autoincrement())
-  name    String
-  email   String    @unique
-  phone   String?
-  userId  Int?      @unique // المفتاح الأجنبي من user
-  user    User?     @relation("UserGuard", fields: [userId], references: [id])
-  shifts  Shift[]
-  Request Request[]
+  id     String  @id @default(cuid())
+  name   String
+  email  String  @unique
+  phone  String?
+  userId String? @unique
+  user   User?   @relation("UserGuard")
+
+  shifts   Shift[]
+  requests Request[]
 }
 
 model Shift {
-  id        Int      @id @default(autoincrement())
-  type      String // Day or Night
+  id        String   @id @default(cuid())
+  type      String
   startTime String
   endTime   String
   date      DateTime
-  guardId   Int
+  guardId   String
   guard     Guard    @relation(fields: [guardId], references: [id])
 }
 
 model Request {
-  id        Int      @id @default(autoincrement())
-  type      String // 'frei' or 'swap'
+  id        String   @id @default(cuid())
+  type      String
   message   String?
   status    String   @default("pending")
   createdAt DateTime @default(now())
-  guardId   Int
+  guardId   String
   guard     Guard    @relation(fields: [guardId], references: [id])
 }
 
 model User {
-  id        Int      @id @default(autoincrement())
-  name      String
-  email     String   @unique
-  password  String
-  role      String   @default("guard")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  password      String?
+  role          String    @default("guard")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
-  // العلاقة مع الحارس
-  guard Guard? @relation("UserGuard")
+  accounts Account[]
+  sessions Session[]
+
+  guard   Guard?  @relation("UserGuard", fields: [guardId], references: [id])
+  guardId String? @unique
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
 }
