@@ -1,5 +1,9 @@
 import GuardForm from "@/components/GuardForm";
 import ShiftForm from "@/components/ShiftForm";
+import { getServerSession } from "next-auth";
+import { authOptions } from "../api/auth/[...nextauth]/route";
+
+
 
 export default function DashboardPage() {
     return (
@@ -20,4 +24,22 @@ export default function DashboardPage() {
               </section>
         </main>
     );
+}
+export default async function DAshboardPage () {
+  const session = await getServerSession(authOptions);
+  const user = session?.user;
+
+  if (!user) {
+    redirect ("/api/auth/signin");
+  }
+
+  if (user.role !== "ADMIN") {
+    redirect ("/guard");
+  }
+  return ( 
+    <main className="p-8 space-y-10">
+      <h1 className="text-3xl font-bold mb-16">ADMIN §</h1>
+      <p>welcome, {user.name}</p>
+    </main>
+  )
 }

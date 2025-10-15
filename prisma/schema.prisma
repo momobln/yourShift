@@ -46,7 +46,7 @@ model User {
   emailVerified DateTime?
   image         String?
   password      String?
-  role          String    @default("guard")
+  role          Role    @default(GUARD)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
@@ -55,6 +55,11 @@ model User {
 
   guard   Guard?  @relation("UserGuard", fields: [guardId], references: [id])
   guardId String? @unique
+}
+
+enum Role {
+  ADMIN
+  GUARD
 }
 
 model Account {
