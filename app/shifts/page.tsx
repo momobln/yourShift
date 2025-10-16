@@ -2,12 +2,25 @@
 import { useEffect, useState } from "react";
 import ShiftForm from "@/components/ShiftForm";
 
+type GuardSummary = {
+  name?: string | null;
+};
+
+type Shift = {
+  id: string;
+  guard?: GuardSummary | null;
+  type: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+};
+
 export default function ShiftsPage() {
-  const [shifts, setShifts] = useState<any[]>([]);
+   const [shifts, setShifts] = useState<Shift[]>([]);
 
   async function loadShifts() {
     const res = await fetch("/api/shifts");
-    const data = await res.json();
+     const data = await res.json();
     setShifts(data);
   }
 
@@ -28,7 +41,7 @@ export default function ShiftsPage() {
         {shifts.length === 0 ? (
           <p className="text-gray-500">No shifts yet.</p>
         ) : (
-          <table className="w-full border-collapse">
+           <table className="w-full border-collapse">
             <thead>
               <tr className="bg-gray-100 border-b">
                 <th className="border p-2 text-left">Guard</th>
@@ -49,7 +62,7 @@ export default function ShiftsPage() {
                   <td className="border p-2">{s.startTime}</td>
                   <td className="border p-2">{s.endTime}</td>
                 </tr>
-              ))}
+                              ))}
             </tbody>
           </table>
         )}

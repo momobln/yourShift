@@ -1,20 +1,21 @@
 import GuardForm from "@/components/GuardForm";
 import ShiftForm from "@/components/ShiftForm";
 import { getServerSession } from "next-auth";
-import { authOptions } from "../api/auth/[...nextauth]/route";
+import { authOptions } from "@/app/lib/auth-options";
 import { redirect } from "next/navigation";
 
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions);
   const user = session?.user;
+  const role = (user as { role?: string | null } | undefined)?.role ?? "GUARD";
 
   // إذا لم يكن المستخدم مسجلاً الدخول
   if (!user) {
     redirect("/api/auth/signin");
   }
 
-  // إذا لم يكن المستخدم ADMIN نعيد توجيهه لصفحة الحراس
-  if (user.role !== "ADMIN") {
+
+   if (role !== "ADMIN") {
     redirect("/guards");
   }
 
