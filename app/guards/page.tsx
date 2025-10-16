@@ -1,6 +1,8 @@
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
+
 import ShiftForm from "@/components/ShiftForm";
+import { authOptions } from "@/app/lib/auth-options";
 
 export default async function ShiftsPage() {
   const session = await getServerSession(authOptions);
