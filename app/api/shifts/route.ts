@@ -1,27 +1,30 @@
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
+import prisma from "@/app/lib/prisma";
 
-const prisma = new PrismaClient();
-
-//GET all Shifts
-export async function GET(){
+export async function GET() {
     const shifts = await prisma.shift.findMany({
-        include: { guard: true },
+        include: { guard: true},
     });
     return NextResponse.json(shifts);
 }
 
-//create new Shift
 export async function POST(req: Request){
     const data = await req.json();
+
+    if (!data.type || !data.startTime || !data.endTime || !data.date || !data.guardId) {
+return NextResponse.json({ error: "Missing required fields" }, { status: 400});
+    }
     const newShift = await prisma.shift.create({
         data: {
             type: data.type,
             startTime: data.startTime,
             endTime: data.endTime,
-            date: new Date(data.date),
+            data: new Date(data.date),
             guardId: data.guardId,
+        
         },
+
     });
     return NextResponse.json(newShift);
+    
 }

@@ -1,36 +1,35 @@
-//ينشئ API endpoint /api/guards يعيد كل الحراس
-import { NextResponse } from "next/server";    //لإرجاع الردود في Next.js.
-import { PrismaClient } from "@prisma/client";  // للاتصال بقاعدة البيانات (PostgreSQL
+import { NextResponse } from "next/server";
+import prisma from "@/app/lib/prisma";
 
- const prisma = new PrismaClient(); //إنشاء كائن prisma للتعامل مع قاعدة البيانات.
-//يمكنك من خلاله تنفيذ أوامر مثل: findMany, create, update, delete.
-//GET all Guards
- export async function GET(){
-  const guards = await prisma.guard.findMany();
-  return NextResponse.json(guards);
- }
- /*findMany() تجلب كل السجلات من جدول Guard.
-ثم تُرجعها كـ JSON.*/
-
-//POST create New Guard
-export async function POST(req: Request){
-    const data = await req.json();
-    const guard = await prisma.guard.create({ data });
-    return NextResponse.json(guard);
+export async function GET() {
+    const guards = await prisma.guard.findMany();
+    return NextResponse.json(guards);
 }
 
+export async function POST(req: Request) {
+ const data = await req.json();
+ if(!data.name || !data.email)
+    return NextResponse.json({ error: "Missing fields"}, { status: 400});
 
-//DELETE a guard by ID تستقبل id للحارس
-export async function DELETE(req: Request){
-    const { id } = await req.json();        //نقرأ الـ id المرسل من الواجهة.
-    await prisma.guard.delete({ where: { id }});     //يحذف الحارس من قاعدة البيانات
-    return NextResponse.json({ message: "Guard deleted successfully"});
+ const guard = await prisma.guard.create({ data });
+ return NextResponse.json(guard);
+}
+export async function DELETE(req: Request) {
+    const { id } = await req.json();
+    try {
+        await prisma.guard.delete({ where: { id }});
+        return NextResponse.json({ message: "Guard deleted successfully!"});
+    } catch {
+        return NextResponse.json({ error: "Guard not found"}, {status: 400});
+    }
 }
 
-//UPDATE guard by ID
-export async function PUT(req: Request){
+export async function PUT(req: Request) {
     const data = await req.json();
-    const updated = await prisma.guard.update({
+    if (!data.id)
+        return NextResponse.json({ error: "Missing ID"}, { status: 400});
+
+    const updated  = await prisma.guard.update({
         where: { id: data.id },
         data: {
             name: data.name,
@@ -38,5 +37,5 @@ export async function PUT(req: Request){
             phone: data.phone,
         }
     });
-    return NextResponse.json(updated);
+return NextResponse.json(updated);
 }
