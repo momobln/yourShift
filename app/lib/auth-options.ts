@@ -21,7 +21,7 @@ export const authOptions: NextAuthOptions = {
   },
   callbacks: {
     async signIn({ user }) {
-       if (!user.email) {
+      if (!user.email) {
         return false;
       }
 
@@ -32,7 +32,7 @@ export const authOptions: NextAuthOptions = {
       if (!dbUser) {
         dbUser = await prisma.user.create({
           data: {
-             email: user.email,
+            email: user.email,
             name: user.name ?? "Unnamed Guard",
             role: "GUARD",
           },
@@ -75,4 +75,8 @@ export const authOptions: NextAuthOptions = {
         (session.user as typeof session.user & { role?: string }).role =
           (token.role as string | undefined) ?? "GUARD";
       }
-      
+
+       return session;
+    },
+  },
+};
