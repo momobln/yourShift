@@ -2,8 +2,21 @@
 import { useEffect, useState } from "react";
 import ShiftForm from "@/components/ShiftForm";
 
+type GuardSummary = {
+  name?: string | null;
+};
+
+type Shift = {
+  id: string;
+  guard?: GuardSummary | null;
+  type: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+};
+
 export default function ShiftsPage() {
-  const [shifts, setShifts] = useState<any[]>([]);
+  const [shifts, setShifts] = useState<Shift[]>([]);
 
   async function loadShifts() {
     const res = await fetch("/api/shifts");
