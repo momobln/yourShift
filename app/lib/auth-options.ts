@@ -21,17 +21,32 @@ export const authOptions: NextAuthOptions = {
   },
   callbacks: {
     async signIn({ user }) {
-      const existingUser = await prisma.user.findUnique({
-        where: { email: user.email! },
+       if (!user.email) {
+        return false;
+      }
+
+      let dbUser = await prisma.user.findUnique({
+        where: { email: user.email },
       });
 
-      if (!existingUser) {
-        await prisma.user.create({
+      if (!dbUser) {
+        dbUser = await prisma.user.create({
           data: {
-            email: user.email!,
+             email: user.email,
             name: user.name ?? "Unnamed Guard",
             role: "GUARD",
           },
+        });
+      }
+
+      const guardProfile = await prisma.guard.findFirst({
+        where: { email: user.email },
+      });
+
+      if (guardProfile && guardProfile.userId !== dbUser.id) {
+        await prisma.guard.update({
+          where: { id: guardProfile.id },
+          data: { user: { connect: { id: dbUser.id } } },
         });
       }
 
@@ -60,9 +75,4 @@ export const authOptions: NextAuthOptions = {
         (session.user as typeof session.user & { role?: string }).role =
           (token.role as string | undefined) ?? "GUARD";
       }
-
-      return session;
-    },
-  },
-  secret: process.env.NEXTAUTH_SECRET,
-};
+      
