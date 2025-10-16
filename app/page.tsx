@@ -6,6 +6,7 @@ import { useSession, signIn } from "next-auth/react";
 export default function HomePage() {
   const { data: session } = useSession();
   const user = session?.user;
+  const role = (user as { role?: string | null } | undefined)?.role ?? "GUARD";
 
   return (
     <main className="flex flex-col items-center justify-center min-h-screen bg-gray-100 text-center p-8">
@@ -13,14 +14,14 @@ export default function HomePage() {
       <h1 className="text-4xl font-bold text-blue-600 mb-4">YourShift</h1>
       <p className="text-gray-700 mb-8 max-w-xl">
         A smart management platform for security companies and guards. <br />
-        Schedule shifts, manage attendance, and streamline your team's workflow — all in one place.
+        Schedule shifts, manage attendance, and streamline your team&apos;s workflow — all in one place.
       </p>
 
       {/* عرض مختلف حسب حالة تسجيل الدخول */}
       {user ? (
         <div className="flex flex-col items-center gap-4">
           <p className="text-lg">Welcome back, {user.name}!</p>
-          {user.role === "ADMIN" ? (
+          {role === "ADMIN" ? (
             <Link
               href="/dashboard"
               className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700"
