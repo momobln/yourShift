@@ -1,6 +1,6 @@
 "use client";
 import { Guard } from "@prisma/client";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 const SHIFT_TEMPLATES = {
   day: { start: "06:00", end: "18:00" },
@@ -31,7 +31,11 @@ export default function ShiftForm({
 }: ShiftFormProps) {
   const [guards, setGuards] = useState<Guard[]>([]);
   const [guardId, setGuardId] = useState<string | null>(null);
-const [templateKey, setTemplateKey] = useState<ShiftTemplateKey>("day");
+   const [guardMode, setGuardMode] = useState<"select" | "create">("select");
+  const [newGuardName, setNewGuardName] = useState("");
+  const [newGuardEmail, setNewGuardEmail] = useState("");
+  const [newGuardPhone, setNewGuardPhone] = useState("");
+  const [templateKey, setTemplateKey] = useState<ShiftTemplateKey>("day");
   const [type, setType] = useState<string>("day");
   const [date, setDate] = useState("");
   const [startTime, setStartTime] = useState<string>(SHIFT_TEMPLATES.day.start);
@@ -52,7 +56,7 @@ const [templateKey, setTemplateKey] = useState<ShiftTemplateKey>("day");
     [guards],
   );
 
-   async function loadGuards() {
+  const loadGuards = useCallback(async () => {
     try {
       const res = await fetch("/api/guards");
       if (!res.ok) {
@@ -60,37 +64,45 @@ const [templateKey, setTemplateKey] = useState<ShiftTemplateKey>("day");
       }
       const data = (await res.json()) as Guard[];
       setGuards(data);
-    } catch (err) {
-       setError("Unable to load guards. Please try again.");
+      } catch (_err) {
+      setError("Unable to load guards. Please try again.");
     }
-  }
+     }, []);
 
-  function applyTemplate(template: keyof typeof SHIFT_TEMPLATES) {
+     const applyTemplate = useCallback((template: keyof typeof SHIFT_TEMPLATES) => {
     const config = SHIFT_TEMPLATES[template];
     setTemplateKey(template);
     setType(template);
     setStartTime(config.start);
     setEndTime(config.end);
-  }
+    }, []);
 
-  function resetForm(options: { clearMessage?: boolean } = {}) {
-    const { clearMessage = true } = options;
-    setGuardId(null);
-    applyTemplate("day");
-    setDate("");
-    setError(null);
-    if (clearMessage) {
-      setMessage(null);
-    }
-  }
+    const resetForm = useCallback(
+    (options: { clearMessage?: boolean } = {}) => {
+      const { clearMessage = true } = options;
+      setGuardId(null);
+      setGuardMode("select");
+      setNewGuardName("");
+      setNewGuardEmail("");
+      setNewGuardPhone("");
+      applyTemplate("day");
+      setDate("");
+      setError(null);
+      if (clearMessage) {
+        setMessage(null);
+      }
+    },
+    [applyTemplate],
+  );
 
   useEffect(() => {
     loadGuards();
-  }, []);
+    }, [loadGuards]);
 
   useEffect(() => {
     if (initialShift) {
       setGuardId(initialShift.guardId);
+      setGuardMode("select");
       setType(initialShift.type);
       setDate(initialShift.date);
       setStartTime(initialShift.startTime);
@@ -106,7 +118,7 @@ const [templateKey, setTemplateKey] = useState<ShiftTemplateKey>("day");
     }
 
     resetForm();
-  }, [initialShift]);
+    }, [initialShift, resetForm]);
 
   const handleTemplateChange = (value: ShiftTemplateKey) => {
     if (value === "custom") {
@@ -119,12 +131,6 @@ const [templateKey, setTemplateKey] = useState<ShiftTemplateKey>("day");
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-
-    if (!guardId) {
-      setError("Please select a guard before saving the shift.");
-      setMessage(null);
-      return;
-    }
 
     if (!date) {
       setError("Please choose a date for the shift.");
@@ -142,9 +148,59 @@ const [templateKey, setTemplateKey] = useState<ShiftTemplateKey>("day");
     setError(null);
     setMessage(null);
 
+    let guardToAssign = guardId;
+
+    if (guardMode === "select") {
+      if (!guardToAssign) {
+        setError("Please select a guard before saving the shift.");
+        setMessage(null);
+        setStatus("idle");
+        return;
+      }
+    } else {
+      if (!newGuardName.trim() || !newGuardEmail.trim()) {
+        setError("Name and email are required to create a new guard.");
+        setMessage(null);
+        setStatus("idle");
+        return;
+      }
+
+      try {
+        const guardResponse = await fetch("/api/guards", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: newGuardName.trim(),
+            email: newGuardEmail.trim(),
+            phone: newGuardPhone.trim() || undefined,
+          }),
+        });
+
+        if (!guardResponse.ok) {
+          const guardPayload = (await guardResponse.json().catch(() => null)) as {
+            error?: string;
+          } | null;
+          throw new Error(guardPayload?.error ?? "Unable to create guard.");
+        }
+
+        const guardData = (await guardResponse.json()) as Guard;
+        guardToAssign = guardData.id;
+        setGuardId(guardData.id);
+        await loadGuards();
+      } catch (err) {
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Unexpected error while creating the guard.",
+        );
+        setStatus("idle");
+        return;
+      }
+    }
+
     const payload = {
       id: initialShift?.id,
-      guardId,
+       guardId: guardToAssign,
       type,
       startTime,
       endTime,
@@ -173,11 +229,11 @@ const [templateKey, setTemplateKey] = useState<ShiftTemplateKey>("day");
         onCancelEdit?.();
       }
 
-       onAdded?.();
+      onAdded?.();
       resetForm({ clearMessage: false });
     } catch (err) {
-       setError(
-         err instanceof Error
+      setError(
+        err instanceof Error
           ? err.message
           : "Unexpected error. Please try again.",
       );
@@ -198,21 +254,72 @@ const [templateKey, setTemplateKey] = useState<ShiftTemplateKey>("day");
       {error && <p className="text-sm text-red-600">{error}</p>}
       {message && <p className="text-sm text-green-600">{message}</p>}
 
-      <select
-       className="rounded border p-2"
-        value={guardId ?? ""}
-         onChange={(e) => setGuardId(e.target.value || null)}
-      >
-        <option value="">Select Guard</option>
-          {guardOptions.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
+      <div className="space-y-3 rounded border p-3">
+        <div className="flex flex-col gap-2">
+          <span className="text-sm font-medium text-gray-700">Guard</span>
+          <div className="flex flex-wrap gap-4 text-sm text-gray-700">
+            <label className="flex items-center gap-2">
+              <input
+                type="radio"
+                name="guardMode"
+                value="select"
+                checked={guardMode === "select"}
+                onChange={() => setGuardMode("select")}
+              />
+              Select existing
+            </label>
+            <label className="flex items-center gap-2">
+              <input
+                type="radio"
+                name="guardMode"
+                value="create"
+                checked={guardMode === "create"}
+                onChange={() => setGuardMode("create")}
+              />
+              Create new
+            </label>
+          </div>
+        </div>
+
+        {guardMode === "select" ? (
+          <select
+            className="w-full rounded border p-2"
+            value={guardId ?? ""}
+            onChange={(e) => setGuardId(e.target.value || null)}
+          >
+            <option value="">Select Guard</option>
+            {guardOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <div className="grid gap-2 sm:grid-cols-3">
+            <input
+              className="rounded border p-2"
+              placeholder="Guard name"
+              value={newGuardName}
+              onChange={(e) => setNewGuardName(e.target.value)}
+            />
+            <input
+              className="rounded border p-2"
+              placeholder="Guard email"
+              value={newGuardEmail}
+              onChange={(e) => setNewGuardEmail(e.target.value)}
+            />
+            <input
+              className="rounded border p-2"
+              placeholder="Phone (optional)"
+              value={newGuardPhone}
+              onChange={(e) => setNewGuardPhone(e.target.value)}
+            />
+          </div>
+        )}
+      </div>
 
       <select
-      className="rounded border p-2"
+       className="rounded border p-2"
         value={templateKey}
         onChange={(e) =>
           handleTemplateChange(e.target.value as ShiftTemplateKey)
@@ -238,54 +345,4 @@ const [templateKey, setTemplateKey] = useState<ShiftTemplateKey>("day");
         className="rounded border p-2"
         value={date}
         onChange={(e) => setDate(e.target.value)}
-      />
-
-      <div className="grid gap-3 sm:grid-cols-2">
-        <label className="flex flex-col gap-1 text-sm font-medium text-gray-700">
-          Start Time
-          <input
-            type="time"
-            className="rounded border p-2"
-            value={startTime}
-            onChange={(e) => setStartTime(e.target.value)}
-          />
-        </label>
-        <label className="flex flex-col gap-1 text-sm font-medium text-gray-700">
-          End Time
-          <input
-            type="time"
-            className="rounded border p-2"
-            value={endTime}
-            onChange={(e) => setEndTime(e.target.value)}
-          />
-        </label>
-      </div>
-
-      <div className="flex gap-2">
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="rounded bg-green-600 p-2 text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-70"
-        >
-          {isSubmitting
-            ? "Saving..."
-            : isEditing
-              ? "Update Shift"
-              : "Add Shift"}
-        </button>
-        {isEditing && (
-          <button
-            type="button"
-            onClick={() => {
-              onCancelEdit?.();
-              resetForm();
-            }}
-            className="rounded bg-gray-200 p-2 text-gray-700 hover:bg-gray-300"
-          >
-            Cancel
-          </button>
-        )}
-      </div>
-    </form>
-  );
-}
+        
