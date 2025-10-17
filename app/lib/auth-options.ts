@@ -39,12 +39,20 @@ export const authOptions: NextAuthOptions = {
         });
       }
 
-      const guardProfile = await prisma.guard.findFirst({
+      let guardProfile = await prisma.guard.findFirst({
         where: { email: user.email },
       });
 
-      if (guardProfile && guardProfile.userId !== dbUser.id) {
-        await prisma.guard.update({
+      if (!guardProfile) {
+        guardProfile = await prisma.guard.create({
+          data: {
+            email: user.email,
+            name: user.name ?? "Unnamed Guard",
+            user: { connect: { id: dbUser.id } },
+          },
+        });
+      } else if (guardProfile.userId !== dbUser.id) {
+        guardProfile = await prisma.guard.update({
           where: { id: guardProfile.id },
           data: { user: { connect: { id: dbUser.id } } },
         });

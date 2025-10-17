@@ -12,6 +12,22 @@ type CreateShiftPayload = {
   guardId: string;
 };
 
+async function requireAdmin() {
+  const session = await getServerSession(authOptions);
+
+  if (!session?.user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const role = (session.user as { role?: string | null }).role ?? "GUARD";
+
+  if (role !== "ADMIN") {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  return null;
+}
+
 export async function GET(req: Request) {
   const session = await getServerSession(authOptions);
 
@@ -54,20 +70,22 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  const session = await getServerSession(authOptions);
-
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+   const authError = await requireAdmin();
+  if (authError) {
+    return authError;
   }
+  
+   const payload = (await req.json().catch(() => null)) as
+    | Partial<CreateShiftPayload>
+    | null;
 
-  const role = (session.user as { role?: string | null }).role ?? "GUARD";
-  if (role !== "ADMIN") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-
-  const payload = (await req.json()) as Partial<CreateShiftPayload>;
-
-  if (!payload.type || !payload.startTime || !payload.endTime || !payload.date || !payload.guardId) {
+  if (
+    !payload?.type ||
+    !payload.startTime ||
+    !payload.endTime ||
+    !payload.date ||
+    !payload.guardId
+  ) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
   }
 
@@ -81,5 +99,61 @@ export async function POST(req: Request) {
     },
     include: { guard: true },
   });
-  return NextResponse.json(newShift);
+  return NextResponse.json(newShift, { status: 201 });
+}
+
+export async function PUT(req: Request) {
+  const authError = await requireAdmin();
+  if (authError) {
+    return authError;
+  }
+
+  const payload = (await req.json().catch(() => null)) as
+    | (Partial<CreateShiftPayload> & { id?: string })
+    | null;
+
+  if (
+    !payload?.id ||
+    !payload.type ||
+    !payload.startTime ||
+    !payload.endTime ||
+    !payload.date ||
+    !payload.guardId
+  ) {
+    return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+  }
+
+  const updatedShift = await prisma.shift.update({
+    where: { id: payload.id },
+    data: {
+      type: payload.type,
+      startTime: payload.startTime,
+      endTime: payload.endTime,
+      date: new Date(payload.date),
+      guardId: payload.guardId,
+    },
+    include: { guard: true },
+  });
+
+  return NextResponse.json(updatedShift);
+}
+
+export async function DELETE(req: Request) {
+  const authError = await requireAdmin();
+  if (authError) {
+    return authError;
+  }
+
+  const { id } = (await req.json().catch(() => ({}))) as { id?: string };
+
+  if (!id) {
+    return NextResponse.json({ error: "Missing shift id" }, { status: 400 });
+  }
+
+  try {
+    await prisma.shift.delete({ where: { id } });
+    return NextResponse.json({ message: "Shift deleted successfully." });
+  } catch (error) {
+    return NextResponse.json({ error: "Shift not found" }, { status: 404 });
+  }
 }
